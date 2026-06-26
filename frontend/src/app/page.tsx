@@ -1,0 +1,25 @@
+"use client";
+
+import { ChatHero } from "@/components/chat/chat-hero";
+import { ChatInput } from "@/components/chat/chat-input";
+import { MessageList } from "@/components/chat/message-list";
+import { useChat } from "@/hooks/use-chat";
+import { useChatStore } from "@/store";
+
+export default function HomePage() {
+  const { messages } = useChatStore();
+  const { sendMessage } = useChat();
+
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {messages.length === 0 ? (
+          <ChatHero onSuggestionClick={(prompt) => sendMessage(prompt)} />
+        ) : (
+          <MessageList />
+        )}
+      </div>
+      <ChatInput onSend={(content) => sendMessage(content)} />
+    </div>
+  );
+}
