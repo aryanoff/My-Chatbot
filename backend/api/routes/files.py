@@ -52,7 +52,29 @@ async def upload_file(
     async with aiofiles.open(storage_path, "wb") as f:
         await f.write(content)
 
+    import io
+    try:
+        from PyPDF2 import PdfReader
+    except ImportError:
+        PdfReader = None
+
     file_type = MIME_TO_TYPE.get(file.content_type or "", FileType.other)
+    if ext in [".txt", ".md", ".csv", ".json", ".py", ".js", ".tsx", ".ts", ".html", ".css"]:
+        file_type = FileType.document
+
+    extracted_text = ""
+    if file_type == FileType.pdf and PdfReader:
+        try:
+            reader = PdfReader(io.BytesIO(content))
+            extracted_text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+        except Exception:
+            pass
+    elif file_type == FileType.document:
+        try:
+            extracted_text = content.decode("utf-8")
+        except Exception:
+            pass
+
     record = FileModel(
         user_id=user.id,
         name=file.filename,
@@ -60,6 +82,7 @@ async def upload_file(
         mime_type=file.content_type,
         size_bytes=len(content),
         storage_path=str(storage_path),
+        metadata_={"extracted_text": extracted_text[:100000]} if extracted_text else {}
     )
     db.add(record)
     await db.commit()

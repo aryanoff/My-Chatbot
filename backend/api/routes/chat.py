@@ -18,7 +18,7 @@ from backend.models.schemas import (
     MessageResponse,
     MessageUpdate,
 )
-from backend.services.meta_ai import DEFAULT_SYSTEM, meta_ai_service
+from backend.services.ai_router import get_best_response, stream_to_user
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
@@ -33,10 +33,9 @@ class GuestMessage(BaseModel):
 async def guest_chat(payload: GuestMessage) -> dict:
     """Send a message without authentication — demo / guest mode."""
     history = [
-        {"role": "system", "content": DEFAULT_SYSTEM},
         {"role": "user", "content": payload.content},
     ]
-    content, tokens = await meta_ai_service.complete(history, model=payload.model)
+    content, final_model, tokens = await get_best_response(payload.content, history)
     return {"role": "assistant", "content": content, "tokens_used": tokens}
 
 
@@ -55,12 +54,13 @@ async def guest_stream(websocket: WebSocket) -> None:
             return
 
         history = [
-            {"role": "system", "content": DEFAULT_SYSTEM},
             {"role": "user", "content": content},
         ]
 
+        content_resp, final_model, tokens = await get_best_response(content, history)
+        
         full_response = ""
-        async for chunk in meta_ai_service.stream_chat(history, model=model):
+        async for chunk in stream_to_user(content_resp):
             full_response += chunk
             await websocket.send_json({"type": "chunk", "content": chunk})
 
@@ -125,13 +125,13 @@ async def send_message(
     await db.flush()
 
     history = await _build_history(db, chat.id)
-    content, tokens = await meta_ai_service.complete(history, model=model)
+    content, final_model, tokens = await get_best_response(payload.content, history)
 
     assistant_msg = Message(
         chat_id=chat.id,
         role=MessageRole.assistant,
         content=content,
-        model=model,
+        model=final_model,
         tokens_used=tokens,
     )
     db.add(assistant_msg)
@@ -176,7 +176,8 @@ async def regenerate_message(
         raise HTTPException(status_code=404, detail="Assistant message not found")
 
     history = await _build_history(db, chat.id, exclude_after=message.id)
-    content, tokens = await meta_ai_service.complete(history, model=chat.model)
+    user_message = history[-1]["content"] if history else "Regenerate this"
+    content, final_model, tokens = await get_best_response(user_message, history)
     message.content = content
     message.tokens_used = tokens
     await db.commit()
@@ -209,9 +210,10 @@ async def stream_chat(websocket: WebSocket, chat_id: UUID) -> None:
         init = await websocket.receive_json()
         token = init.get("token")
         content = init.get("content", "")
+        audio_url = init.get("audio_url", None)
         model = init.get("model", "meta-ai")
 
-        if not token or not content:
+        if not token or (not content and not audio_url):
             await websocket.send_json({"error": "Missing token or content"})
             await websocket.close()
             return
@@ -227,9 +229,10 @@ async def stream_chat(websocket: WebSocket, chat_id: UUID) -> None:
             await db.flush()
 
             history = await _build_history(db, chat.id)
+            content_resp, final_model, tokens = await get_best_response(content, history, audio_url)
+            
             full_response = ""
-
-            async for chunk in meta_ai_service.stream_chat(history, model=model):
+            async for chunk in stream_to_user(content_resp):
                 full_response += chunk
                 await websocket.send_json({"type": "chunk", "content": chunk})
 
@@ -237,8 +240,8 @@ async def stream_chat(websocket: WebSocket, chat_id: UUID) -> None:
                 chat_id=chat.id,
                 role=MessageRole.assistant,
                 content=full_response,
-                model=model,
-                tokens_used=len(full_response.split()),
+                model=final_model,
+                tokens_used=tokens,
             )
             db.add(assistant_msg)
             if chat.title == "New Chat":
@@ -279,9 +282,12 @@ async def _build_history(
 ) -> list[dict[str, str]]:
     result = await db.execute(select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at.asc()))
     messages = list(result.scalars().all())
-    history: list[dict[str, str]] = [{"role": "system", "content": DEFAULT_SYSTEM}]
+    
+    # Filter out excluded and get last 10
+    filtered = []
     for msg in messages:
         if exclude_after and msg.id == exclude_after:
             break
-        history.append({"role": msg.role.value, "content": msg.content})
-    return history
+        filtered.append({"role": msg.role.value, "content": msg.content})
+        
+    return filtered[-10:]

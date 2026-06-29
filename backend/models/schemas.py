@@ -157,3 +157,28 @@ class FileUploadResponse(BaseModel):
     thumbnail_url: str | None
 
     model_config = {"from_attributes": True}
+
+
+class LibraryItemCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    content: str = Field(min_length=1)
+    category: str | None = None
+    is_favorite: bool = False
+
+
+class LibraryItemUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
+    category: str | None = None
+    is_favorite: bool | None = None
+
+
+class LibraryItemResponse(BaseModel):
+    id: UUID
+    title: str
+    content: str
+    category: str | None
+    is_favorite: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

@@ -8,7 +8,7 @@ import { PageTransition } from "@/components/animations/page-transition";
 import { ToolPanel } from "@/components/tools/tool-panel";
 import { useChatStore } from "@/store";
 
-const AUTH_ROUTES = ["/login", "/register"];
+const AUTH_ROUTES = ["/login", "/register", "/oauth-callback"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

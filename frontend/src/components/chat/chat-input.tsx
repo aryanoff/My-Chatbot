@@ -17,15 +17,10 @@ import {
   Globe,
   Brain,
   Telescope,
-  Bot,
-  ChevronDown,
-  Sparkles,
   X,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChatStore, useUIStore } from "@/store";
-import { AI_MODELS, AI_TOOLS } from "@/utils/constants";
-import type { AIModel } from "@/types";
 
 interface ChatInputProps {
   className?: string;
@@ -61,89 +56,7 @@ function ToggleChip({ active, onClick, icon, label }: ToggleChipProps) {
   );
 }
 
-interface DropdownProps {
-  label: string;
-  value: string;
-  options: Array<{ id: string; label: string; description?: string }>;
-  onChange: (id: string) => void;
-  icon: React.ReactNode;
-}
 
-function SelectorDropdown({ label, value, options, onChange, icon }: DropdownProps) {
-  const [open, setOpen] = useState(false);
-  const selected = options.find((o) => o.id === value);
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-          "text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10",
-        )}
-      >
-        {icon}
-        <span className="max-w-[6rem] truncate">{selected?.label ?? label}</span>
-        <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <>
-            <button
-              type="button"
-              className="fixed inset-0 z-40 cursor-default"
-              aria-label="Close menu"
-              onClick={() => setOpen(false)}
-            />
-            <motion.ul
-              role="listbox"
-              initial={{ opacity: 0, y: 8, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.96 }}
-              transition={{ duration: 0.15 }}
-              className={cn(
-                "absolute bottom-full left-0 z-50 mb-2 min-w-[12rem] overflow-hidden rounded-xl",
-                "border border-white/20 bg-white/90 shadow-float backdrop-blur-glass",
-                "dark:border-white/10 dark:bg-slate-900/95",
-              )}
-            >
-              {options.map((option) => (
-                <li key={option.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={option.id === value}
-                    onClick={() => {
-                      onChange(option.id);
-                      setOpen(false);
-                    }}
-                    className={cn(
-                      "flex w-full flex-col px-3 py-2 text-left text-xs transition-colors",
-                      option.id === value
-                        ? "bg-primary/10 text-primary"
-                        : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5",
-                    )}
-                  >
-                    <span className="font-medium">{option.label}</span>
-                    {option.description && (
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                        {option.description}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </motion.ul>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 export function ChatInput({
   className,
@@ -207,11 +120,7 @@ export function ChatInput({
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const agentOptions = AI_TOOLS.map((tool) => ({
-    id: tool.id,
-    label: tool.name,
-    description: tool.description,
-  }));
+
 
   return (
     <motion.div
@@ -359,25 +268,22 @@ export function ChatInput({
           </div>
 
           <div className="flex items-center gap-1">
-            <SelectorDropdown
-              label="Agent"
-              value={inputOptions.agentId ?? agentOptions[0]?.id ?? ""}
-              options={agentOptions}
-              onChange={(id) => setInputOptions({ agentId: id })}
-              icon={<Bot className="h-3.5 w-3.5" />}
-            />
-
-            <SelectorDropdown
-              label="Model"
-              value={inputOptions.model}
-              options={AI_MODELS.map((m) => ({
-                id: m.id,
-                label: m.label,
-                description: m.description,
-              }))}
-              onChange={(id) => setInputOptions({ model: id as AIModel })}
-              icon={<Sparkles className="h-3.5 w-3.5" />}
-            />
+            <div className="flex items-center gap-1.5 px-2 text-xs font-medium text-slate-500 dark:text-slate-400 mr-2">
+              <span className={cn(
+                "relative flex h-2 w-2",
+                isStreaming ? "animate-pulse" : ""
+              )}>
+                <span className={cn(
+                  "absolute inline-flex h-full w-full rounded-full opacity-75",
+                  isStreaming ? "animate-ping bg-yellow-400" : "bg-emerald-400"
+                )}></span>
+                <span className={cn(
+                  "relative inline-flex h-2 w-2 rounded-full",
+                  isStreaming ? "bg-yellow-500" : "bg-emerald-500"
+                )}></span>
+              </span>
+              {isStreaming ? "AI Busy" : "AI Ready"}
+            </div>
 
             <motion.button
               type="button"
