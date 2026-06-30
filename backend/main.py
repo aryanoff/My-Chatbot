@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -25,8 +25,11 @@ from backend.services.health_check import run_health_checks, health_check_loop
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        print(f"[startup] DB init warning (non-fatal): {e}")
     asyncio.create_task(run_health_checks())
     asyncio.create_task(health_check_loop())
     yield
@@ -56,6 +59,5 @@ app.include_router(library_router, prefix="/api/v1")
 
 
 @app.get("/health")
-@limiter.limit("30/minute")
-async def health(request: Request) -> dict[str, str]:
+async def health() -> dict[str, str]:
     return {"status": "healthy", "service": settings.app_name}

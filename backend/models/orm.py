@@ -186,7 +186,7 @@ class Subscription(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    tier: Mapped[SubscriptionTier] = mapped_column(Enum(SubscriptionTier, name="subscription_tier"))
+    tier: Mapped[SubscriptionTier] = mapped_column(Enum(SubscriptionTier, name="subscription_tier", create_constraint=False))
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255))
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(50), default="active")
