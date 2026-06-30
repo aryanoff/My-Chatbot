@@ -8,6 +8,7 @@ dist/
 uploads/
 __pycache__/
 *.pyc
+*.pyo
 .venv/
 venv/
 *.egg-info/
@@ -15,3 +16,18 @@ venv/
 Thumbs.db
 .postgres/
 backend-server*.log
+*.log
+
+# SQLite local dev db (not for production)
+zaara_ai.db
+*.db
+
+# Railway / Docker
+.railway/
+
+# Test / scratch files
+scratch_*.py
+test_endpoints.py
+
+# Windows installer
+*.exe

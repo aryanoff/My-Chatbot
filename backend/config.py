@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     github_client_id: str = ""
     github_client_secret: str = ""
-    
+
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
     twilio_phone_number: str = ""
@@ -37,6 +37,19 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def async_database_url(self) -> str:
+        """
+        Converts Railway's DATABASE_URL (postgres://...) to the async-compatible
+        format (postgresql+asyncpg://...) required by SQLAlchemy asyncpg driver.
+        """
+        url = self.database_url
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://") and "+asyncpg" not in url:
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
 
 
 settings = Settings()
