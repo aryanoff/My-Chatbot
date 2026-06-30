@@ -58,6 +58,18 @@ app.include_router(agents_router, prefix="/api/v1")
 app.include_router(library_router, prefix="/api/v1")
 
 
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {
+        "service": settings.app_name,
+        "version": "1.0.0",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/health",
+        "api": "/api/v1",
+    }
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "healthy", "service": settings.app_name}
