@@ -47,11 +47,18 @@ class Settings(BaseSettings):
         Converts Railway's DATABASE_URL (postgres://...) to the async-compatible
         format (postgresql+asyncpg://...) required by SQLAlchemy asyncpg driver.
         """
-        url = self.database_url
+        # Strip accidental quotes, backticks, and whitespace
+        url = self.database_url.strip().strip("'\"`")
+        
+        if not url or url.startswith("${{"):
+            # Fallback if empty or unresolved template variable
+            url = "sqlite+aiosqlite:///./zaara_ai.db"
+
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif url.startswith("postgresql://") and "+asyncpg" not in url:
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            
         return url
 
 
