@@ -220,6 +220,10 @@ async def oauth_callback_endpoint(provider: str, request: Request, db: AsyncSess
     if "localhost" not in redirect_uri_str and redirect_uri_str.startswith("http://"):
         redirect_uri_str = redirect_uri_str.replace("http://", "https://", 1)
 
+    print("OAuth Callback Cookies:", request.cookies)
+    print("OAuth Callback Session Keys:", list(request.session.keys()))
+    print("OAuth Callback Session Content:", dict(request.session))
+
     try:
         token = await client.authorize_access_token(request, redirect_uri=redirect_uri_str)
     except Exception as e:

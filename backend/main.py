@@ -55,6 +55,7 @@ class ProxyHeadersMiddleware:
         if scope["type"] in ("http", "websocket"):
             headers = dict(scope.get("headers", []))
             if b"x-forwarded-proto" in headers and headers[b"x-forwarded-proto"] == b"https":
+                print(f"[ProxyHeaders] Rewriting scheme to https (was {scope.get('scheme')})")
                 scope["scheme"] = "https"
         await self.app(scope, receive, send)
 
