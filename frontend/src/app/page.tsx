@@ -13,12 +13,7 @@ export default function HomePage() {
   const { sendMessage } = useChat();
   const router = useRouter();
 
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      router.push("/login");
-    }
-  }, [router]);
+
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
