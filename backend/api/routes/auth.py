@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 from backend.models.orm import OTPCode
 from pydantic import BaseModel
 import uuid
+import secrets
 
 oauth = OAuth()
 oauth.register(
@@ -48,6 +49,16 @@ oauth.register(
     client_kwargs={'scope': 'user:email'},
 )
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# Server-side OAuth state store (avoids cross-domain session cookie issues)
+_oauth_states: dict[str, dict] = {}
+
+def _get_redirect_uri(request: Request, provider: str) -> str:
+    redirect_uri = request.url_for('oauth_callback_endpoint', provider=provider)
+    uri = str(redirect_uri)
+    if "localhost" not in uri and uri.startswith("http://"):
+        uri = uri.replace("http://", "https://", 1)
+    return uri
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -201,12 +212,21 @@ async def oauth_login(provider: str, request: Request):
     client = oauth.create_client(provider)
     if not client:
         raise HTTPException(status_code=400, detail="Invalid provider")
-    # For local development we might just use localhost hardcoded or let authlib build it
-    redirect_uri = request.url_for('oauth_callback_endpoint', provider=provider)
-    redirect_uri_str = str(redirect_uri)
-    if "localhost" not in redirect_uri_str and redirect_uri_str.startswith("http://"):
-        redirect_uri_str = redirect_uri_str.replace("http://", "https://", 1)
-    return await client.authorize_redirect(request, redirect_uri_str)
+
+    # Generate state server-side and store it (bypasses cross-domain cookie issue)
+    state = secrets.token_urlsafe(24)
+    _oauth_states[state] = {
+        "provider": provider,
+        "created_at": datetime.now(timezone.utc)
+    }
+    # Purge states older than 10 minutes
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+    expired = [k for k, v in _oauth_states.items() if v["created_at"] < cutoff]
+    for k in expired:
+        _oauth_states.pop(k, None)
+
+    redirect_uri_str = _get_redirect_uri(request, provider)
+    return await client.authorize_redirect(request, redirect_uri_str, state=state)
 
 
 @router.get("/oauth/{provider}/callback", name="oauth_callback_endpoint")
@@ -214,38 +234,74 @@ async def oauth_callback_endpoint(provider: str, request: Request, db: AsyncSess
     client = oauth.create_client(provider)
     if not client:
         raise HTTPException(status_code=400, detail="Invalid provider")
-    
-    redirect_uri = request.url_for('oauth_callback_endpoint', provider=provider)
-    redirect_uri_str = str(redirect_uri)
-    if "localhost" not in redirect_uri_str and redirect_uri_str.startswith("http://"):
-        redirect_uri_str = redirect_uri_str.replace("http://", "https://", 1)
 
-    print("OAuth Callback Cookies:", request.cookies)
-    print("OAuth Callback Session Keys:", list(request.session.keys()))
-    print("OAuth Callback Session Content:", dict(request.session))
+    # Validate state from server-side store instead of relying on session cookie
+    state = request.query_params.get("state")
+    if not state or state not in _oauth_states:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+    _oauth_states.pop(state, None)
 
-    try:
-        token = await client.authorize_access_token(request, redirect_uri=redirect_uri_str)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    redirect_uri_str = _get_redirect_uri(request, provider)
+    code = request.query_params.get("code")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
 
-    if provider == 'google':
-        user_info = token.get('userinfo')
-        if not user_info:
-            user_info = await client.parse_id_token(request, token)
-        email = user_info.get('email')
-        name = user_info.get('name', '')
-    elif provider == 'github':
-        resp = await client.get('user', token=token)
-        user_info = resp.json()
-        email = user_info.get('email')
+    # Exchange code for token directly (bypasses Authlib session-based state check)
+    if provider == "google":
+        async with httpx.AsyncClient() as hc:
+            token_resp = await hc.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": settings.google_client_id,
+                    "client_secret": settings.google_client_secret,
+                    "redirect_uri": redirect_uri_str,
+                    "grant_type": "authorization_code",
+                },
+            )
+        if token_resp.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"Token exchange failed: {token_resp.text}")
+        token_data = token_resp.json()
+        id_token = token_data.get("id_token")
+        # Decode JWT payload (no signature verification needed — came directly from Google)
+        import base64, json as _json
+        payload_b64 = id_token.split(".")[1]
+        payload_b64 += "=" * (-len(payload_b64) % 4)
+        user_info = _json.loads(base64.urlsafe_b64decode(payload_b64))
+        email = user_info.get("email")
+        name = user_info.get("name", "")
+    elif provider == "github":
+        async with httpx.AsyncClient() as hc:
+            token_resp = await hc.post(
+                "https://github.com/login/oauth/access_token",
+                headers={"Accept": "application/json"},
+                data={
+                    "code": code,
+                    "client_id": settings.github_client_id,
+                    "client_secret": settings.github_client_secret,
+                    "redirect_uri": redirect_uri_str,
+                },
+            )
+        access_token = token_resp.json().get("access_token")
+        async with httpx.AsyncClient() as hc:
+            user_resp = await hc.get(
+                "https://api.github.com/user",
+                headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
+            )
+        user_info = user_resp.json()
+        email = user_info.get("email")
         if not email:
-            resp = await client.get('user/emails', token=token)
-            emails = resp.json()
-            email = next((e['email'] for e in emails if e.get('primary')), emails[0]['email'])
-        name = user_info.get('name') or user_info.get('login', '')
+            async with httpx.AsyncClient() as hc:
+                emails_resp = await hc.get(
+                    "https://api.github.com/user/emails",
+                    headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
+                )
+            emails = emails_resp.json()
+            email = next((e["email"] for e in emails if e.get("primary")), emails[0]["email"])
+        name = user_info.get("name") or user_info.get("login", "")
     else:
-        email = None
+        raise HTTPException(status_code=400, detail="Unsupported provider")
+
 
     if not email:
         raise HTTPException(status_code=400, detail="Email not provided by OAuth provider")
