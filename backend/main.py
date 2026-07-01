@@ -24,8 +24,10 @@ from backend.services.health_check import run_health_checks, health_check_loop
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+        async def init_db():
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        await asyncio.wait_for(init_db(), timeout=5.0)
     except Exception as e:
         print(f"[startup] DB init warning (non-fatal): {e}")
     asyncio.create_task(run_health_checks())
