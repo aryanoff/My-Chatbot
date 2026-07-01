@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     cloudflare_api_token: str = ""
     cloudflare_account_id: str = ""
-    cors_origins: str = "http://localhost:3000,https://zaara-ai.vercel.app"
+    cors_origins: str = "*"
     frontend_url: str = "http://localhost:3000"
 
     google_client_id: str = ""
@@ -37,6 +37,8 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
+        if self.cors_origins.strip() == "*":
+            return ["*"]
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property

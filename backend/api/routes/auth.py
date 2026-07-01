@@ -322,9 +322,14 @@ async def oauth_callback_endpoint(provider: str, request: Request, db: AsyncSess
         await db.flush()
         db.add(UserSettings(user_id=user.id))
         
-    user.last_login = datetime.now(timezone.utc)
-    await db.commit()
-    await db.refresh(user)
+    try:
+        user.last_login = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(user)
+    except Exception as db_err:
+        print(f"[OAuth] DB error: {db_err}")
+        await db.rollback()
+        raise HTTPException(status_code=503, detail=f"Database unavailable: {db_err}")
 
     frontend_url = settings.frontend_url
     access_token = create_access_token(user.id)
