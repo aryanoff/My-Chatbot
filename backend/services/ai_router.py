@@ -97,7 +97,7 @@ async def call_openrouter(messages: list[dict], system_prompt: str) -> str:
             headers={
                 "Authorization": f"Bearer {settings.openrouter_api_key}",
                 "Content-Type": "application/json",
-                "HTTP-Referer": settings.cors_origin_list[0] if settings.cors_origin_list else "http://localhost:3000",
+                "HTTP-Referer": settings.frontend_url or "http://localhost:3000",
                 "X-Title": settings.app_name
             },
             json=payload,

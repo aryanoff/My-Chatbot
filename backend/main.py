@@ -5,8 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from starlette.middleware.sessions import SessionMiddleware
-
 from backend.api.routes.analytics import agents_router, router as analytics_router
 from backend.api.routes.auth import router as auth_router
 from backend.api.routes.chat import router as chat_router
@@ -59,7 +57,6 @@ class ProxyHeadersMiddleware:
                 scope["scheme"] = "https"
         await self.app(scope, receive, send)
 
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 app.add_middleware(ProxyHeadersMiddleware)
 
 app.include_router(auth_router, prefix="/api/v1")
