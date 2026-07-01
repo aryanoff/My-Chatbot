@@ -46,7 +46,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class ProxyHeadersMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            headers = dict(scope.get("headers", []))
+            if b"x-forwarded-proto" in headers and headers[b"x-forwarded-proto"] == b"https":
+                scope["scheme"] = "https"
+        await self.app(scope, receive, send)
+
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+app.add_middleware(ProxyHeadersMiddleware)
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
