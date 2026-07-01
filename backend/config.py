@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     cloudflare_api_token: str = ""
     cloudflare_account_id: str = ""
     cors_origins: str = "http://localhost:3000,https://zaara-ai.vercel.app"
+    frontend_url: str = "http://localhost:3000"
 
     google_client_id: str = ""
     google_client_secret: str = ""

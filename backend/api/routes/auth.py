@@ -258,7 +258,7 @@ async def oauth_callback_endpoint(provider: str, request: Request, db: AsyncSess
     await db.commit()
     await db.refresh(user)
 
-    frontend_url = "http://localhost:3000"
+    frontend_url = settings.frontend_url
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
     
