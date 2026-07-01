@@ -204,28 +204,36 @@ async def log_usage_db(model: str, response_time_ms: int, retry_triggered: bool)
     """Log usage to SQLite database."""
     from backend.database.connection import AsyncSessionLocal
     from backend.models.orm import AIUsageTracker
-    async with AsyncSessionLocal() as db:
-        usage = AIUsageTracker(
-            model_name=model,
-            response_time_ms=response_time_ms,
-            retry_triggered=retry_triggered
-        )
-        db.add(usage)
-        await db.commit()
+    try:
+        async with AsyncSessionLocal() as db:
+            usage = AIUsageTracker(
+                model_name=model,
+                response_time_ms=response_time_ms,
+                retry_triggered=retry_triggered
+            )
+            db.add(usage)
+            await db.commit()
+    except Exception as e:
+        print(f"[Warning] Failed to log usage to DB: {e}")
 
 async def get_daily_usage(model: str) -> int:
     from sqlalchemy import select, func
     from datetime import date
     from backend.database.connection import AsyncSessionLocal
     from backend.models.orm import AIUsageTracker
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(func.count()).where(
-                AIUsageTracker.model_name == model,
-                AIUsageTracker.date == date.today()
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(func.count()).where(
+                    AIUsageTracker.model_name == model,
+                    AIUsageTracker.date == date.today()
+                )
             )
-        )
-        return result.scalar()
+            return result.scalar()
+    except Exception as e:
+        print(f"[Warning] Failed to get usage from DB: {e}")
+        return 0
+
 
 async def get_best_response(user_message: str, messages: list[dict], audio_url: str = None) -> tuple[str, str, int]:
     """Orchestrates model selection and quality checking (Claude Looping). Returns (best_response, model_used, tokens)."""
