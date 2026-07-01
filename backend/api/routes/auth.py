@@ -215,8 +215,13 @@ async def oauth_callback_endpoint(provider: str, request: Request, db: AsyncSess
     if not client:
         raise HTTPException(status_code=400, detail="Invalid provider")
     
+    redirect_uri = request.url_for('oauth_callback_endpoint', provider=provider)
+    redirect_uri_str = str(redirect_uri)
+    if "localhost" not in redirect_uri_str and redirect_uri_str.startswith("http://"):
+        redirect_uri_str = redirect_uri_str.replace("http://", "https://", 1)
+
     try:
-        token = await client.authorize_access_token(request)
+        token = await client.authorize_access_token(request, redirect_uri=redirect_uri_str)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
