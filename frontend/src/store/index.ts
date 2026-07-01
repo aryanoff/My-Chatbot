@@ -84,9 +84,11 @@ interface UIState {
   theme: ThemeMode;
   highContrast: boolean;
   voiceActive: boolean;
+  aboutModalOpen: boolean;
   setTheme: (theme: ThemeMode) => void;
   setHighContrast: (v: boolean) => void;
   setVoiceActive: (v: boolean) => void;
+  setAboutModalOpen: (v: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -95,9 +97,12 @@ export const useUIStore = create<UIState>()(
       theme: "system",
       highContrast: false,
       voiceActive: false,
+      aboutModalOpen: false,
       setTheme: (theme) => set({ theme }),
       setHighContrast: (v) => set({ highContrast: v }),
       setVoiceActive: (v) => set({ voiceActive: v }),
+      setAboutModalOpen: (v) => set({ aboutModalOpen: v }),
+
     }),
     { name: "zaara-ui" },
   ),

@@ -21,6 +21,7 @@ import {
   Pin,
   Sparkles,
   BarChart,
+  Code,
   type LucideIcon,
 } from "lucide-react";
 import { useChatStore, useAuthStore, useUIStore } from "@/store";
@@ -62,7 +63,7 @@ export function Sidebar() {
   const { chats, activeChatId, sidebarOpen, setActiveChat, toggleSidebar, clearMessages } =
     useChatStore();
   const { user, logout } = useAuthStore();
-  const { theme, setTheme } = useUIStore();
+  const { theme, setTheme, setAboutModalOpen } = useUIStore();
 
   const recentChats = chats.slice(0, 8);
 
@@ -292,6 +293,14 @@ export function Sidebar() {
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
+                    onClick={() => setAboutModalOpen(true)}
+                    className="flex items-center justify-center rounded-xl p-2 text-slate-500 transition-colors hover:bg-primary/10 hover:text-primary"
+                    aria-label="About Developer"
+                  >
+                    <Code size={16} />
+                  </button>
+                  <button
+                    type="button"
                     onClick={toggleThemeMode}
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-sm text-slate-600 transition-colors hover:bg-white/60 hover:text-primary dark:text-slate-300 dark:hover:bg-white/5"
                     aria-label="Toggle theme"
@@ -320,6 +329,14 @@ export function Sidebar() {
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-xs font-semibold text-white">
                   {getInitials(user?.name ?? "G")}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setAboutModalOpen(true)}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
+                  aria-label="About Developer"
+                >
+                  <Code size={16} />
+                </button>
                 <button
                   type="button"
                   onClick={toggleThemeMode}

@@ -6,6 +6,7 @@ import { MobileNav } from "@/components/sidebar/mobile-nav";
 import { TopBar } from "@/components/navbar/top-bar";
 import { PageTransition } from "@/components/animations/page-transition";
 import { ToolPanel } from "@/components/tools/tool-panel";
+import { AboutDeveloperModal } from "@/components/developer/about-developer";
 import { useChatStore } from "@/store";
 
 const AUTH_ROUTES = ["/login", "/register", "/oauth-callback"];
@@ -46,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <MobileNav />
+      <AboutDeveloperModal />
     </div>
   );
 }

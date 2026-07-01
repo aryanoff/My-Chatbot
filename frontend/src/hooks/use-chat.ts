@@ -282,13 +282,44 @@ export function useChat() {
   // Pick the right sender based on auth state
   const sendMessage = useCallback(
     async (content: string) => {
+      if (!content.trim()) return;
+
+      const onboarded = localStorage.getItem("zaara_onboarded");
+      if (!onboarded) {
+        localStorage.setItem("zaara_onboarded", "true");
+        
+        // Add user message
+        addMessage({
+          id: `temp-${Date.now()}`,
+          chat_id: activeChatId || "guest",
+          role: "user",
+          content,
+          tokens_used: 0,
+          created_at: new Date().toISOString(),
+        });
+
+        // Simulate typing delay for onboarding response
+        setTimeout(() => {
+          addMessage({
+            id: `onboarding-${Date.now()}`,
+            chat_id: activeChatId || "guest",
+            role: "assistant",
+            content: "Welcome! I am Zaara Ai.\n\nI was developed by Aryan Singh Rajpoot—a BSc Computer Science student, Full-Stack Developer, and the creative force behind Mr Rajpoot Studio. Aryan specializes in bridging the gap between cutting-edge AI technology and seamless digital experiences, bringing a unique blend of technical software engineering and creative digital content production to this project.\n\nHow can Zaara Ai help you?",
+            tokens_used: 0,
+            created_at: new Date().toISOString(),
+            isStreaming: false,
+          });
+        }, 500);
+        return;
+      }
+
       if (accessToken) {
         await sendAuthMessage(content);
       } else {
         await sendGuestMessage(content);
       }
     },
-    [accessToken, sendAuthMessage, sendGuestMessage],
+    [accessToken, activeChatId, addMessage, sendAuthMessage, sendGuestMessage],
   );
 
   useEffect(() => {
