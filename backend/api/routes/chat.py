@@ -71,7 +71,10 @@ async def guest_stream(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         return
     except Exception as exc:
-        await websocket.send_json({"type": "error", "error": str(exc)})
+        err_msg = str(exc)
+        if "111" in err_msg or "Connection refused" in err_msg:
+            err_msg = "Database offline (Connection refused). Please ensure the backend is connected to the database, or NEXT_PUBLIC_API_URL is correctly set on the frontend."
+        await websocket.send_json({"type": "error", "error": err_msg})
     finally:
         await websocket.close()
 
