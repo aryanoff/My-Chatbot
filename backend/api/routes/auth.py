@@ -203,7 +203,10 @@ async def oauth_login(provider: str, request: Request):
         raise HTTPException(status_code=400, detail="Invalid provider")
     # For local development we might just use localhost hardcoded or let authlib build it
     redirect_uri = request.url_for('oauth_callback_endpoint', provider=provider)
-    return await client.authorize_redirect(request, str(redirect_uri))
+    redirect_uri_str = str(redirect_uri)
+    if "localhost" not in redirect_uri_str and redirect_uri_str.startswith("http://"):
+        redirect_uri_str = redirect_uri_str.replace("http://", "https://", 1)
+    return await client.authorize_redirect(request, redirect_uri_str)
 
 
 @router.get("/oauth/{provider}/callback", name="oauth_callback_endpoint")
